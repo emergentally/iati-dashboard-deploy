@@ -1,3 +1,6 @@
+# Secrets, supplied by the operator. See pillar/secrets.sls.example.
+pillar/secrets.sls
+
 # Deploy keys are supplied by the operator, never committed.
 salt/files/deploy
 salt/files/deploy.pub

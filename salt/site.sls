@@ -14,7 +14,7 @@ include:
 {% set codedir       = pillar.frontend_codedir %}
 {% set giturl        = pillar.frontend_url %}
 {% set branch        = pillar.frontend_branch %}
-{% set node_version  = pillar.get('node_version', '22') %}
+{% set node_version  = pillar.get('node_version', '24') %}
 {% set pm2_port      = pillar.pm2_port %}
 {% set servername    = pillar.servername %}
 {% set serveraliases = pillar.get('serveraliases', []) %}
@@ -53,44 +53,6 @@ site-node-install:
     - unless: . "$HOME/.nvm/nvm.sh" && nvm ls {{ node_version }} >/dev/null 2>&1
     - require:
       - cmd: site-nvm-install
-
-##################################################################### Yarn
-# apt-key is deprecated and 24.04 ignores its keyring, so the repo fails to
-# verify. Install the key to /usr/share/keyrings and reference it explicitly.
-site-yarn-key:
-  cmd.run:
-    - name: >
-        curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg
-        | gpg --dearmor -o /usr/share/keyrings/yarnkey.gpg
-    - runas: root
-    - creates: /usr/share/keyrings/yarnkey.gpg
-    - require:
-      - pkg: site-deps
-
-site-yarn-list:
-  file.managed:
-    - name: /etc/apt/sources.list.d/yarn.list
-    - mode: 644
-    - user: root
-    - group: root
-    - contents: |
-        deb [signed-by=/usr/share/keyrings/yarnkey.gpg] https://dl.yarnpkg.com/debian stable main
-    - require:
-      - cmd: site-yarn-key
-
-site-yarn-refresh:
-  cmd.run:
-    - name: apt-get update
-    - runas: root
-    - onchanges:
-      - file: site-yarn-list
-
-site-yarn:
-  pkg.installed:
-    - pkgs:
-      - yarn
-    - require:
-      - cmd: site-yarn-refresh
 
 ##################################################################### Deploy key
 {% if uses_ssh_key %}
@@ -159,13 +121,12 @@ site-yarn:
     - name: |
         set -e
         . "$HOME/.nvm/nvm.sh" && nvm use {{ node_version }}
-        yarn install --frozen-lockfile
+        npm ci
     - runas: {{ user }}
     - cwd: {{ codedir }}
     - shell: /bin/bash
     - require:
       - cmd: site-node-install
-      - pkg: site-yarn
     - onchanges:
       - git: {{ codedir }}
 
@@ -178,7 +139,7 @@ site-yarn:
     - name: |
         set -e
         . "$HOME/.nvm/nvm.sh" && nvm use {{ node_version }}
-        yarn run build
+        npm run build
         rm -rf .output-latest
         cp -r .output .output-latest
     - runas: {{ user }}
@@ -199,25 +160,29 @@ site-yarn:
     - context:
         pm2_port: {{ pm2_port | string }}
         name: {{ name }}
+        dashboard_base: {{ pillar.get('dashboard_base', '') }}
+        ryd_base: {{ pillar.get('ryd_base', '') }}
+        site_password: {{ pillar.get('site_password', '') }}
+        auth_client_id: {{ pillar.get('auth_client_id', '') }}
+        auth_base_url: {{ pillar.get('auth_base_url', '') }}
+        auth_scope: {{ pillar.get('auth_scope', '') }}
     - require:
       - git: {{ codedir }}
 
 site-install-pm2:
   cmd.run:
-    - name: . "$HOME/.nvm/nvm.sh" && nvm use {{ node_version }} && yarn global add pm2
+    - name: . "$HOME/.nvm/nvm.sh" && nvm use {{ node_version }} && npm install -g pm2
     - runas: {{ user }}
     - shell: /bin/bash
     - unless: . "$HOME/.nvm/nvm.sh" && command -v pm2 >/dev/null 2>&1
     - require:
       - cmd: site-node-install
-      - pkg: site-yarn
 
 {{ codedir }}pm2-start:
   cmd.run:
     - name: |
         set -e
         . "$HOME/.nvm/nvm.sh" && nvm use {{ node_version }}
-        export PATH="$HOME/.yarn/bin:$PATH"
         pm2 start ecosystem.config.cjs --update-env
         pm2 save
     - cwd: {{ codedir }}
@@ -236,7 +201,6 @@ site-pm2-startup:
     - name: >
         export NVM_DIR="/home/{{ user }}/.nvm" && . "$NVM_DIR/nvm.sh"
         && nvm use {{ node_version }}
-        && export PATH="/home/{{ user }}/.yarn/bin:$PATH"
         && pm2 startup systemd -u {{ user }} --hp /home/{{ user }}
     - runas: root
     - shell: /bin/bash
