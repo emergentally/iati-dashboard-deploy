@@ -1,0 +1,13 @@
+# Config for salt-ssh. Point salt-ssh at this with:
+#   export SALT_CONFIG_DIR=$(pwd)/salt-config
+# or run from the repo root, where the Saltfile picks it up.
+file_roots:
+  base:
+    - salt/
+
+pillar_roots:
+  base:
+    - pillar/
+
+# salt-ssh writes its own minion keys here rather than /etc/salt.
+pki_dir: salt-config/pki

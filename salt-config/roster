@@ -1,0 +1,6 @@
+# One entry per target. The name is what you pass to ./up.sh.
+dashboard-preview:
+  host: CHANGE-ME.example.org
+  user: root
+  # port: 22
+  # priv: /path/to/your/ssh/key

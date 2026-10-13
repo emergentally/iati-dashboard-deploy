@@ -1,0 +1,7 @@
+# Deploy keys are supplied by the operator, never committed.
+salt/files/deploy
+salt/files/deploy.pub
+
+# Local salt-ssh state
+salt-config/pki/
+.salt-ssh*

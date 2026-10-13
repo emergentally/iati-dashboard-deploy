@@ -1,0 +1,4 @@
+salt-ssh:
+  config_dir: salt-config
+  roster_file: salt-config/roster
+  max_procs: 1
